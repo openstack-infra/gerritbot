@@ -29,7 +29,7 @@ openstack-dev:
       - master
 """
 
-import ircbot
+import irc.bot
 import time
 import subprocess
 import threading
@@ -38,14 +38,24 @@ import json
 import sys
 import os
 import ConfigParser
-import daemon, daemon.pidlockfile
+import daemon
 import traceback
 import yaml
 
-class GerritBot(ircbot.SingleServerIRCBot):
+try:
+    import daemon.pidlockfile
+    pid_file_module = daemon.pidlockfile
+except:
+    # as of python-daemon 1.6 it doesn't bundle pidlockfile anymore
+    # instead it depends on lockfile-0.9.1
+    import daemon.pidfile
+    pid_file_module = daemon.pidfile
+
+
+class GerritBot(irc.bot.SingleServerIRCBot):
     def __init__(self, channels, nickname, password, server, port=6667):
-        ircbot.SingleServerIRCBot.__init__(self, 
-                                           [(server, port)], 
+        irc.bot.SingleServerIRCBot.__init__(self,
+                                           [(server, port)],
                                            nickname, nickname)
         self.channel_list = channels
         self.nickname = nickname
@@ -60,13 +70,14 @@ class GerritBot(ircbot.SingleServerIRCBot):
         c.nick(self.nickname)
 
     def on_welcome(self, c, e):
-        c.privmsg("nickserv", "identify %s "% self.password)
+        c.privmsg("nickserv", "identify %s " % self.password)
         for channel in self.channel_list:
             c.join(channel)
 
     def send(self, channel, msg):
         self.connection.privmsg(channel, msg)
         time.sleep(0.5)
+
 
 class Gerrit(threading.Thread):
     def __init__(self, ircbot, channel_config,
@@ -86,7 +97,7 @@ class Gerrit(threading.Thread):
                                       '-i', self.keyfile,
                                       '-l', self.username, self.server,
                                       'gerrit', 'stream-events'],
-                                     bufsize=1, 
+                                     bufsize=1,
                                      stdin=None,
                                      stdout=subprocess.PIPE,
                                      stderr=None,
@@ -118,7 +129,7 @@ class Gerrit(threading.Thread):
             data['change']['subject'],
             data['change']['url'])
         self.ircbot.send(channel, msg)
-        
+
         for approval in data.get('approvals', []):
             if (approval['type'] == 'VRIF' and approval['value'] == '-2' and
                                 channel in self.channel_config.events.get(
@@ -189,7 +200,7 @@ class Gerrit(threading.Thread):
                         self._read()
                     else:
                         raise Exception("event on ssh connection")
-        
+
     def _run(self):
         try:
             if not self.proc:
@@ -204,14 +215,15 @@ class Gerrit(threading.Thread):
         time.sleep(5)
         while True:
             self._run()
-            
+
+
 class ChannelConfig(object):
     def __init__(self, data):
         self.data = data
         keys = data.keys()
         for key in keys:
             if key[0] != '#':
-                data['#'+key] = data.pop(key)
+                data['#' + key] = data.pop(key)
         self.channels = data.keys()
         self.projects = {}
         self.events = {}
@@ -230,8 +242,9 @@ class ChannelConfig(object):
                 branch_set.add(channel)
                 self.branches[branch] = branch_set
 
+
 def _main():
-    config=ConfigParser.ConfigParser()
+    config = ConfigParser.ConfigParser()
     config.read(sys.argv[1])
 
     fp = config.get('ircbot', 'channel_config')
@@ -249,7 +262,7 @@ def _main():
                     config.get('ircbot', 'pass'),
                     config.get('ircbot', 'server'),
                     config.getint('ircbot', 'port'))
-    g = Gerrit(bot, 
+    g = Gerrit(bot,
                channel_config,
                config.get('gerrit', 'user'),
                config.get('gerrit', 'key'),
@@ -258,12 +271,13 @@ def _main():
     g.start()
     bot.start()
 
+
 def main():
     if len(sys.argv) != 2:
         print "Usage: %s CONFIGFILE" % sys.argv[0]
         sys.exit(1)
 
-    pid = daemon.pidlockfile.TimeoutPIDLockFile(
+    pid = pid_file_module.TimeoutPIDLockFile(
             "/var/run/gerritbot/gerritbot.pid", 10)
     with daemon.DaemonContext(pidfile=pid):
         _main()
