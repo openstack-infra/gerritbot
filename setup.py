@@ -52,5 +52,8 @@ setuptools.setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python"
-    ]
+    ],
+    entry_points={
+        "console_scripts": ["gerritbot = gerritbot.bot:main"]
+    }
 )
