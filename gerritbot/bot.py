@@ -72,21 +72,28 @@ class GerritBot(irc.bot.SingleServerIRCBot):
         self.channel_list = channels
         self.nickname = nickname
         self.password = password
+        self.log = logging.getLogger('gerritbot')
 
     def on_nicknameinuse(self, c, e):
+        self.log.info('Nick previously in use, recovering.')
         c.nick(c.get_nickname() + "_")
         c.privmsg("nickserv", "identify %s " % self.password)
         c.privmsg("nickserv", "ghost %s %s" % (self.nickname, self.password))
         c.privmsg("nickserv", "release %s %s" % (self.nickname, self.password))
         time.sleep(1)
         c.nick(self.nickname)
+        self.log.info('Nick previously in use, recovered.')
 
     def on_welcome(self, c, e):
+        self.log.info('Identifying with IRC server.')
         c.privmsg("nickserv", "identify %s " % self.password)
+        self.log.info('Identified with IRC server.')
         for channel in self.channel_list:
             c.join(channel)
+            self.log.info('Joined channel %s' % channel)
 
     def send(self, channel, msg):
+        self.log.info('Sending "%s" to %s' % (msg, channel))
         self.connection.privmsg(channel, msg)
         time.sleep(0.5)
 
@@ -97,9 +104,27 @@ class Gerrit(threading.Thread):
         threading.Thread.__init__(self)
         self.ircbot = ircbot
         self.channel_config = channel_config
+        self.log = logging.getLogger('gerritbot')
+        self.server = server
+        self.username = username
+        self.port = port
+        self.keyfile = keyfile
+        self.connected = False
+
+    def connect(self):
         # Import here because it needs to happen after daemonization
         import gerritlib.gerrit
-        self.gerrit = gerritlib.gerrit.Gerrit(server, username, port, keyfile)
+        try:
+            self.gerrit = gerritlib.gerrit.Gerrit(self.server, self.username,
+                                                    self.port, self.keyfile)
+            self.gerrit.startWatching()
+            self.log.info('Start watching Gerrit event stream.')
+            self.connected = True
+        except:
+            self.log.exception('Exception while connecting to gerrit')
+            self.connected = False
+            # Delay before attempting again.
+            time.sleep(1)
 
     def patchset_created(self, channel, data):
         msg = '%s proposed a change to %s: %s  %s' % (
@@ -107,6 +132,7 @@ class Gerrit(threading.Thread):
             data['change']['project'],
             data['change']['subject'],
             data['change']['url'])
+        self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
 
     def comment_added(self, channel, data):
@@ -114,6 +140,7 @@ class Gerrit(threading.Thread):
             data['change']['project'],
             data['change']['subject'],
             data['change']['url'])
+        self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
 
         for approval in data.get('approvals', []):
@@ -124,6 +151,7 @@ class Gerrit(threading.Thread):
                     data['change']['project'],
                     data['change']['subject'],
                     data['change']['url'])
+                self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
 
             if (approval['type'] == 'VRIF' and approval['value'] == '2' and
@@ -133,6 +161,7 @@ class Gerrit(threading.Thread):
                     data['change']['project'],
                     data['change']['subject'],
                     data['change']['url'])
+                self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
 
             if (approval['type'] == 'CRVW' and approval['value'] == '-2' and
@@ -142,6 +171,7 @@ class Gerrit(threading.Thread):
                     data['change']['project'],
                     data['change']['subject'],
                     data['change']['url'])
+                self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
 
             if (approval['type'] == 'CRVW' and approval['value'] == '2' and
@@ -151,6 +181,7 @@ class Gerrit(threading.Thread):
                     data['change']['project'],
                     data['change']['subject'],
                     data['change']['url'])
+                self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
 
     def change_merged(self, channel, data):
@@ -158,6 +189,7 @@ class Gerrit(threading.Thread):
             data['change']['project'],
             data['change']['subject'],
             data['change']['url'])
+        self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
 
     def _read(self, data):
@@ -167,6 +199,8 @@ class Gerrit(threading.Thread):
                             data['type'], set()) &
                        self.channel_config.branches.get(
                             data['change']['branch'], set()))
+        self.log.info('Potential channels to receive event notification: %s' %
+                                                                  channel_set)
         for channel in channel_set:
             if data['type'] == 'comment-added':
                 self.comment_added(channel, data)
@@ -176,10 +210,18 @@ class Gerrit(threading.Thread):
                 self.change_merged(channel, data)
 
     def run(self):
-        self.gerrit.startWatching()
         while True:
-            event = self.gerrit.getEvent()
-            self._read(event)
+            while not self.connected:
+                self.connect()
+            try:
+                event = self.gerrit.getEvent()
+                self.log.info('Received event: %s' % event)
+                self._read(event)
+            except:
+                self.log.exception('Exception encountered in event loop')
+                # Start new gerrit connection. Don't need to restart IRC bot,
+                # it will reconnect on its own.
+                self.connect()
 
 
 class ChannelConfig(object):
@@ -250,8 +292,8 @@ def main():
 
 
 def setup_logging(config):
-    if config.has_option('gerrit', 'log_config'):
-        log_config = config.get('gerrit', 'log_config')
+    if config.has_option('ircbot', 'log_config'):
+        log_config = config.get('ircbot', 'log_config')
         fp = os.path.expanduser(log_config)
         if not os.path.exists(fp):
             raise Exception("Unable to read logging config file at %s" % fp)
