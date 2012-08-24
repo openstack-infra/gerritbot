@@ -224,9 +224,10 @@ class Gerrit(threading.Thread):
                 self._read(event)
             except:
                 self.log.exception('Exception encountered in event loop')
-                # Start new gerrit connection. Don't need to restart IRC bot,
-                # it will reconnect on its own.
-                self.connect()
+                if not self.gerrit.watcher_thread.is_alive():
+                    # Start new gerrit connection. Don't need to restart IRC
+                    # bot, it will reconnect on its own.
+                    self.connected = False
 
 
 class ChannelConfig(object):
