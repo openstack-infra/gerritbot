@@ -193,12 +193,17 @@ class Gerrit(threading.Thread):
         self.ircbot.send(channel, msg)
 
     def _read(self, data):
-        channel_set = (self.channel_config.projects.get(
-                            data['change']['project'], set()) &
-                       self.channel_config.events.get(
-                            data['type'], set()) &
-                       self.channel_config.branches.get(
-                            data['change']['branch'], set()))
+        try:
+            channel_set = (self.channel_config.projects.get(
+                                data['change']['project'], set()) &
+                            self.channel_config.events.get(
+                                data['type'], set()) &
+                            self.channel_config.branches.get(
+                                data['change']['branch'], set()))
+        except KeyError:
+            # The data we care about was not present, no channels want
+            # this event.
+            channel_set = set()
         self.log.info('Potential channels to receive event notification: %s' %
                                                                   channel_set)
         for channel in channel_set:
