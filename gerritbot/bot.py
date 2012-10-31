@@ -22,6 +22,7 @@ nick=NICKNAME
 pass=PASSWORD
 server=irc.freenode.net
 port=6667
+server_password=SERVERPASS
 channel_config=/path/to/yaml/config
 
 [gerrit]
@@ -65,9 +66,10 @@ except:
 
 
 class GerritBot(irc.bot.SingleServerIRCBot):
-    def __init__(self, channels, nickname, password, server, port=6667):
+    def __init__(self, channels, nickname, password, server, port=6667,
+                 server_password=None):
         irc.bot.SingleServerIRCBot.__init__(self,
-                                           [(server, port)],
+                                           [(server, port, server_password)],
                                            nickname, nickname)
         self.channel_list = channels
         self.nickname = nickname
@@ -257,7 +259,7 @@ class ChannelConfig(object):
 
 
 def _main():
-    config = ConfigParser.ConfigParser()
+    config = ConfigParser.ConfigParser({'server_password': None})
     config.read(sys.argv[1])
     setup_logging(config)
 
@@ -275,7 +277,8 @@ def _main():
                     config.get('ircbot', 'nick'),
                     config.get('ircbot', 'pass'),
                     config.get('ircbot', 'server'),
-                    config.getint('ircbot', 'port'))
+                    config.getint('ircbot', 'port'),
+                    config.get('ircbot', 'server_password'))
     g = Gerrit(bot,
                channel_config,
                config.get('gerrit', 'host'),
