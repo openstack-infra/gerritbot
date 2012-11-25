@@ -1,15 +1,17 @@
-Gerritbot is an IRC bot that will notify IRC channels of Gerrit events.
+Installation
+============
 
-To install Gerritbot run `python setup.py install` from within the repository's
-root directory.
+To install Gerritbot run ::
 
-To run Gerritbot `$PATH/gerritbot /path/to/config`. $PATH is usually something
-like /usr/local/bin and /path/to/config should be whatever path you have hidden
-the config at.
+  sudo python setup.py install
+
+Configuration File
+==================
 
 Gerritbot has two configuration files. The first configures the IRC server and
 Gerrit server details and is the config file whose path you pass to gerritbot
-when starting the bot. It should look like:
+when starting the bot. It should look like::
+
   [ircbot]
   nick=NICKNAME
   pass=PASSWORD
@@ -26,7 +28,8 @@ when starting the bot. It should look like:
 
 The second configures the IRC channels and the events and projects that each
 channel is interested in. This config file is written in yaml and should look
-like:
+like::
+
   example-channel1:
       events:
         - patchset-created
@@ -45,3 +48,10 @@ like:
         - example/project4
       branches:
         - master
+
+Running
+=======
+
+To run Gerritbot `$PATH/gerritbot /path/to/config`. $PATH is usually something
+like /usr/local/bin and /path/to/config should be whatever path you have hidden
+the config at.
