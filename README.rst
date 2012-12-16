@@ -21,7 +21,7 @@ Bug report:
 
 Cloning:
 
- * https://github.com/openstack-ci/gerritbot.git
+ * https://github.com/openstack-infra/gerritbot.git
 
 Patches are submitted via Gerrit at:
 
