@@ -10,7 +10,7 @@ To install::
 
 Online documentation:
 
- * http://ci.openstack.org/gerritbot/
+ * http://ci.openstack.org/gerrit.html#gerrit-irc-bot
 
 Developers
 ==========
@@ -35,7 +35,7 @@ License
 =======
 
 Copyright 2011 OpenStack, LLC
-Copyright 2012 Hewlett-Packard Development Company, L.P.
+Copyright 2012-2013 Hewlett-Packard Development Company, L.P.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
