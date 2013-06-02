@@ -1,4 +1,3 @@
-include gerritbot/versioninfo
 include AUTHORS
 include ChangeLog
 
