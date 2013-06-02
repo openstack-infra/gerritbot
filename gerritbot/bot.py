@@ -58,7 +58,7 @@ import yaml
 try:
     import daemon.pidlockfile
     pid_file_module = daemon.pidlockfile
-except:
+except Exception:
     # as of python-daemon 1.6 it doesn't bundle pidlockfile anymore
     # instead it depends on lockfile-0.9.1
     import daemon.pidfile
@@ -68,9 +68,8 @@ except:
 class GerritBot(irc.bot.SingleServerIRCBot):
     def __init__(self, channels, nickname, password, server, port=6667,
                  server_password=None):
-        irc.bot.SingleServerIRCBot.__init__(self,
-                                           [(server, port, server_password)],
-                                           nickname, nickname)
+        irc.bot.SingleServerIRCBot.__init__(
+            self, [(server, port, server_password)], nickname, nickname)
         self.channel_list = channels
         self.nickname = nickname
         self.password = password
@@ -117,12 +116,12 @@ class Gerrit(threading.Thread):
         # Import here because it needs to happen after daemonization
         import gerritlib.gerrit
         try:
-            self.gerrit = gerritlib.gerrit.Gerrit(self.server, self.username,
-                                                    self.port, self.keyfile)
+            self.gerrit = gerritlib.gerrit.Gerrit(
+                self.server, self.username, self.port, self.keyfile)
             self.gerrit.startWatching()
             self.log.info('Start watching Gerrit event stream.')
             self.connected = True
-        except:
+        except Exception:
             self.log.exception('Exception while connecting to gerrit')
             self.connected = False
             # Delay before attempting again.
@@ -146,9 +145,9 @@ class Gerrit(threading.Thread):
         self.ircbot.send(channel, msg)
 
         for approval in data.get('approvals', []):
-            if (approval['type'] == 'VRIF' and approval['value'] == '-2' and
-                                channel in self.channel_config.events.get(
-                                                    'x-vrif-minus-2', set())):
+            if (approval['type'] == 'VRIF' and approval['value'] == '-2'
+                and channel in self.channel_config.events.get(
+                    'x-vrif-minus-2', set())):
                 msg = 'Verification of a change to %s failed: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
@@ -156,9 +155,9 @@ class Gerrit(threading.Thread):
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
 
-            if (approval['type'] == 'VRIF' and approval['value'] == '2' and
-                                channel in self.channel_config.events.get(
-                                                    'x-vrif-plus-2', set())):
+            if (approval['type'] == 'VRIF' and approval['value'] == '2'
+                and channel in self.channel_config.events.get(
+                    'x-vrif-plus-2', set())):
                 msg = 'Verification of a change to %s succeeded: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
@@ -166,9 +165,9 @@ class Gerrit(threading.Thread):
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
 
-            if (approval['type'] == 'CRVW' and approval['value'] == '-2' and
-                                channel in self.channel_config.events.get(
-                                                    'x-crvw-minus-2', set())):
+            if (approval['type'] == 'CRVW' and approval['value'] == '-2'
+                and channel in self.channel_config.events.get(
+                    'x-crvw-minus-2', set())):
                 msg = 'A change to %s has been rejected: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
@@ -176,9 +175,9 @@ class Gerrit(threading.Thread):
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
 
-            if (approval['type'] == 'CRVW' and approval['value'] == '2' and
-                                channel in self.channel_config.events.get(
-                                                    'x-crvw-plus-2', set())):
+            if (approval['type'] == 'CRVW' and approval['value'] == '2'
+                and channel in self.channel_config.events.get(
+                    'x-crvw-plus-2', set())):
                 msg = 'A change to %s has been approved: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
@@ -197,17 +196,17 @@ class Gerrit(threading.Thread):
     def _read(self, data):
         try:
             channel_set = (self.channel_config.projects.get(
-                                data['change']['project'], set()) &
-                            self.channel_config.events.get(
-                                data['type'], set()) &
-                            self.channel_config.branches.get(
-                                data['change']['branch'], set()))
+                data['change']['project'], set()) &
+                self.channel_config.events.get(
+                    data['type'], set()) &
+                self.channel_config.branches.get(
+                    data['change']['branch'], set()))
         except KeyError:
             # The data we care about was not present, no channels want
             # this event.
             channel_set = set()
         self.log.info('Potential channels to receive event notification: %s' %
-                                                                  channel_set)
+                      channel_set)
         for channel in channel_set:
             if data['type'] == 'comment-added':
                 self.comment_added(channel, data)
@@ -224,7 +223,7 @@ class Gerrit(threading.Thread):
                 event = self.gerrit.getEvent()
                 self.log.info('Received event: %s' % event)
                 self._read(event)
-            except:
+            except Exception:
                 self.log.exception('Exception encountered in event loop')
                 if not self.gerrit.watcher_thread.is_alive():
                     # Start new gerrit connection. Don't need to restart IRC
@@ -295,7 +294,7 @@ def main():
         sys.exit(1)
 
     pid = pid_file_module.TimeoutPIDLockFile(
-            "/var/run/gerritbot/gerritbot.pid", 10)
+        "/var/run/gerritbot/gerritbot.pid", 10)
     with daemon.DaemonContext(pidfile=pid):
         _main()
 
