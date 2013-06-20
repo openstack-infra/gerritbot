@@ -1,4 +1,8 @@
 .tox
+AUTHORS
+ChangeLog
+*egg-info
+dist/*
 build/*
 *.pyc
 doc/build/*
