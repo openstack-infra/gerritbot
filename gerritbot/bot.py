@@ -129,7 +129,7 @@ class Gerrit(threading.Thread):
             time.sleep(1)
 
     def patchset_created(self, channel, data):
-        msg = '%s proposed a change to %s: %s  %s' % (
+        msg = '%s proposed %s: %s  %s' % (
             data['patchSet']['uploader']['name'],
             data['change']['project'],
             data['change']['subject'],
@@ -187,7 +187,7 @@ class Gerrit(threading.Thread):
                 self.ircbot.send(channel, msg)
 
     def change_merged(self, channel, data):
-        msg = 'A change was merged to %s: %s  %s' % (
+        msg = 'Merged %s: %s  %s' % (
             data['change']['project'],
             data['change']['subject'],
             data['change']['url'])
