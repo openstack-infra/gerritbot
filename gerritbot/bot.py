@@ -96,8 +96,12 @@ class GerritBot(irc.bot.SingleServerIRCBot):
 
     def send(self, channel, msg):
         self.log.info('Sending "%s" to %s' % (msg, channel))
-        self.connection.privmsg(channel, msg)
-        time.sleep(0.5)
+        try:
+            self.connection.privmsg(channel, msg)
+            time.sleep(0.5)
+        except Exception:
+            self.log.exception('Exception sending message:')
+            self.reconnect()
 
 
 class Gerrit(threading.Thread):
