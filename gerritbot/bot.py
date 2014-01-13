@@ -68,8 +68,8 @@ except Exception:
 class GerritBot(irc.bot.SingleServerIRCBot):
     def __init__(self, channels, nickname, password, server, port=6667,
                  server_password=None):
-        irc.bot.SingleServerIRCBot.__init__(
-            self, [(server, port, server_password)], nickname, nickname)
+        super(GerritBot, self).__init__([(server, port, server_password)],
+                                        nickname, nickname)
         self.channel_list = channels
         self.nickname = nickname
         self.password = password
@@ -107,7 +107,7 @@ class GerritBot(irc.bot.SingleServerIRCBot):
 class Gerrit(threading.Thread):
     def __init__(self, ircbot, channel_config, server,
                  username, port=29418, keyfile=None):
-        threading.Thread.__init__(self)
+        super(Gerrit, self).__init__()
         self.ircbot = ircbot
         self.channel_config = channel_config
         self.log = logging.getLogger('gerritbot')
