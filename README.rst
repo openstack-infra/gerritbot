@@ -15,15 +15,19 @@ Online documentation:
 Developers
 ==========
 
-Bug report:
+Report bugs:
 
  * https://bugs.launchpad.net/openstack-ci/
 
-Cloning:
+Browse code:
 
- * https://github.com/openstack-infra/gerritbot.git
+ * https://git.openstack.org/cgit/openstack-infra/gerritbot/tree/
 
-Patches are submitted via Gerrit at:
+Clone:
+
+ * git://git.openstack.org/openstack-infra/gerritbot
+
+Submit patches via Gerrit at:
 
  * https://review.openstack.org/
 
