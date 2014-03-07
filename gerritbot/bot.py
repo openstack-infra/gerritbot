@@ -50,6 +50,7 @@ import daemon
 import irc.bot
 import logging.config
 import os
+import ssl
 import sys
 import threading
 import time
@@ -74,8 +75,14 @@ irc.client.ServerConnection.buffer_class.errors = 'replace'
 class GerritBot(irc.bot.SingleServerIRCBot):
     def __init__(self, channels, nickname, password, server, port=6667,
                  server_password=None):
-        super(GerritBot, self).__init__([(server, port, server_password)],
-                                        nickname, nickname)
+        if port == 6697:
+            factory = irc.connection.Factory(wrapper=ssl.wrap_socket)
+            super(GerritBot, self).__init__([(server, port, server_password)],
+                                            nickname, nickname,
+                                            connect_factory=factory)
+        else:
+            super(GerritBot, self).__init__([(server, port, server_password)],
+                                            nickname, nickname)
         self.channel_list = channels
         self.nickname = nickname
         self.password = password
