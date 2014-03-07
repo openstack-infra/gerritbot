@@ -65,6 +65,12 @@ except Exception:
     pid_file_module = daemon.pidfile
 
 
+# https://bitbucket.org/jaraco/irc/issue/34/
+# irc-client-should-not-crash-on-failed
+# ^ This is why pep8 is a bad idea.
+irc.client.ServerConnection.buffer_class.errors = 'replace'
+
+
 class GerritBot(irc.bot.SingleServerIRCBot):
     def __init__(self, channels, nickname, password, server, port=6667,
                  server_password=None):
