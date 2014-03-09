@@ -50,6 +50,7 @@ import daemon
 import irc.bot
 import logging.config
 import os
+import re
 import ssl
 import sys
 import threading
@@ -154,6 +155,20 @@ class Gerrit(threading.Thread):
         self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
 
+    def ref_updated(self, channel, data):
+        refName = data['refUpdate']['refName']
+        m = re.match(r'(refs/tags)/(.*)', refName)
+
+        if m:
+            tag = m.group(2)
+            msg = '%s tagged project %s with %s' % (
+                data['submitter']['username'],
+                data['refUpdate']['project'],
+                tag
+            )
+            self.log.info('Compiled Message %s: %s' % (channel, msg))
+            self.ircbot.send(channel, msg)
+
     def comment_added(self, channel, data):
         msg = 'A comment has been added to a proposed change to %s: %s  %s' % (
             data['change']['project'],
@@ -213,12 +228,15 @@ class Gerrit(threading.Thread):
 
     def _read(self, data):
         try:
-            channel_set = (self.channel_config.projects.get(
-                data['change']['project'], set()) &
-                self.channel_config.events.get(
-                    data['type'], set()) &
-                self.channel_config.branches.get(
-                    data['change']['branch'], set()))
+            if data['type'] == 'ref-updated':
+                channel_set = self.channel_config.events.get('ref-updated')
+            else:
+                channel_set = (self.channel_config.projects.get(
+                    data['change']['project'], set()) &
+                    self.channel_config.events.get(
+                        data['type'], set()) &
+                    self.channel_config.branches.get(
+                        data['change']['branch'], set()))
         except KeyError:
             # The data we care about was not present, no channels want
             # this event.
@@ -232,6 +250,8 @@ class Gerrit(threading.Thread):
                 self.patchset_created(channel, data)
             elif data['type'] == 'change-merged':
                 self.change_merged(channel, data)
+            elif data['type'] == 'ref-updated':
+                self.ref_updated(channel, data)
 
     def run(self):
         while True:
