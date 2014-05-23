@@ -22,6 +22,7 @@ nick=NICKNAME
 pass=PASSWORD
 server=irc.freenode.net
 port=6667
+force_ssl=false
 server_password=SERVERPASS
 channel_config=/path/to/yaml/config
 
@@ -75,8 +76,8 @@ irc.client.ServerConnection.buffer_class.errors = 'replace'
 
 class GerritBot(irc.bot.SingleServerIRCBot):
     def __init__(self, channels, nickname, password, server, port=6667,
-                 server_password=None):
-        if port == 6697:
+                 force_ssl=False, server_password=None):
+        if force_ssl or port == 6697:
             factory = irc.connection.Factory(wrapper=ssl.wrap_socket)
             super(GerritBot, self).__init__([(server, port, server_password)],
                                             nickname, nickname,
@@ -296,7 +297,8 @@ class ChannelConfig(object):
 
 
 def _main():
-    config = ConfigParser.ConfigParser({'server_password': None})
+    config = ConfigParser.ConfigParser({'force_ssl': 'false',
+                                        'server_password': None})
     config.read(sys.argv[1])
     setup_logging(config)
 
@@ -315,6 +317,7 @@ def _main():
                     config.get('ircbot', 'pass'),
                     config.get('ircbot', 'server'),
                     config.getint('ircbot', 'port'),
+                    config.getboolean('ircbot', 'force_ssl'),
                     config.get('ircbot', 'server_password'))
     g = Gerrit(bot,
                channel_config,
