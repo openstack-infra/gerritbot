@@ -5,3 +5,4 @@ gerritlib
 irc
 pyyaml
 python-daemon
+six>=1.6.0

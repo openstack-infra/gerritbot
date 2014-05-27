@@ -52,6 +52,7 @@ import irc.bot
 import logging.config
 import os
 import re
+import six
 import ssl
 import sys
 import threading
@@ -281,7 +282,7 @@ class ChannelConfig(object):
         self.projects = {}
         self.events = {}
         self.branches = {}
-        for channel, val in self.data.iteritems():
+        for channel, val in six.iteritems(self.data):
             for event in val['events']:
                 event_set = self.events.get(event, set())
                 event_set.add(channel)
