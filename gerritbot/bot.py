@@ -25,6 +25,7 @@ port=6667
 force_ssl=false
 server_password=SERVERPASS
 channel_config=/path/to/yaml/config
+pid=/path/to/pid_file
 
 [gerrit]
 user=gerrit2
@@ -296,10 +297,7 @@ class ChannelConfig(object):
                 self.branches[branch] = branch_set
 
 
-def _main():
-    config = ConfigParser.ConfigParser({'force_ssl': 'false',
-                                        'server_password': None})
-    config.read(sys.argv[1])
+def _main(config):
     setup_logging(config)
 
     fp = config.get('ircbot', 'channel_config')
@@ -334,10 +332,19 @@ def main():
         print "Usage: %s CONFIGFILE" % sys.argv[0]
         sys.exit(1)
 
-    pid = pid_file_module.TimeoutPIDLockFile(
-        "/var/run/gerritbot/gerritbot.pid", 10)
+    config = ConfigParser.ConfigParser({'force_ssl': 'false',
+                                        'server_password': None})
+    config.read(sys.argv[1])
+
+    pid_path = ""
+    if config.has_option('ircbot', 'pid'):
+        pid_path = config.get('ircbot', 'pid')
+    else:
+        pid_path = "/var/run/gerritbot/gerritbot.pid"
+
+    pid = pid_file_module.TimeoutPIDLockFile(pid_path, 10)
     with daemon.DaemonContext(pidfile=pid):
-        _main()
+        _main(config)
 
 
 def setup_logging(config):
