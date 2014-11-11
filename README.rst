@@ -17,7 +17,7 @@ Developers
 
 Report bugs:
 
- * https://bugs.launchpad.net/openstack-ci/
+ * https://storyboard.openstack.org/#!/project/717
 
 Browse code:
 
