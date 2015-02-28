@@ -330,7 +330,7 @@ def _main(config):
 
 def main():
     if len(sys.argv) != 2:
-        print "Usage: %s CONFIGFILE" % sys.argv[0]
+        print("Usage: %s CONFIGFILE" % sys.argv[0])
         sys.exit(1)
 
     config = ConfigParser.ConfigParser({'force_ssl': 'false',
