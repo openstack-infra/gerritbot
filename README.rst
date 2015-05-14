@@ -10,7 +10,7 @@ To install::
 
 Online documentation:
 
- * http://ci.openstack.org/gerrit.html#gerrit-irc-bot
+ * http://docs.openstack.org/infra/system-config/gerrit.html#gerrit-irc-bot
 
 Developers
 ==========
