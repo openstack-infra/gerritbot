@@ -308,7 +308,12 @@ def _main(config):
     else:
         raise Exception("Channel Config must be specified in config file.")
 
-    channel_config = ChannelConfig(yaml.load(open(fp)))
+    try:
+        channel_config = ChannelConfig(yaml.load(open(fp)))
+    except Exception:
+        log = logging.getLogger('gerritbot')
+        log.exception("Syntax error in chanel config file")
+        raise
 
     bot = GerritBot(channel_config.channels,
                     config.get('ircbot', 'nick'),
