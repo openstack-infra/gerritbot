@@ -117,7 +117,7 @@ class GerritBot(irc.bot.SingleServerIRCBot):
             time.sleep(0.5)
         except Exception:
             self.log.exception('Exception sending message:')
-            self.reconnect()
+            self.connection.reconnect()
 
 
 class Gerrit(threading.Thread):
