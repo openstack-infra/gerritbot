@@ -83,6 +83,18 @@ except Exception:
 # ^ This is why pep8 is a bad idea.
 irc.client.ServerConnection.buffer_class.errors = 'replace'
 
+# Freenode only allows a connection to join up to 120 channels
+CHANNEL_MAX = 120
+
+
+class Channel(object):
+    def __init__(self, name):
+        self.name = name
+        self.stamp()
+
+    def stamp(self):
+        self.last_used = time.time()
+
 
 class GerritBot(irc.bot.SingleServerIRCBot):
     def __init__(self, channels, nickname, password, server, port=6667,
@@ -95,7 +107,10 @@ class GerritBot(irc.bot.SingleServerIRCBot):
         else:
             super(GerritBot, self).__init__([(server, port, server_password)],
                                             nickname, nickname)
-        self.channel_list = channels
+        self.all_channels = {}
+        for name in channels:
+            self.all_channels[name] = Channel(name)
+        self.joined_channels = {}
         self.nickname = nickname
         self.password = password
         self.log = logging.getLogger('gerritbot')
@@ -114,15 +129,25 @@ class GerritBot(irc.bot.SingleServerIRCBot):
         self.log.info('Identifying with IRC server.')
         c.privmsg("nickserv", "identify %s " % self.password)
         self.log.info('Identified with IRC server.')
-        for channel in self.channel_list:
-            c.join(channel)
-            self.log.info('Joined channel %s' % channel)
-            time.sleep(0.5)
+        self.joined_channels = {}
 
-    def send(self, channel, msg):
-        self.log.info('Sending "%s" to %s' % (msg, channel))
+    def send(self, channel_name, msg):
+        self.log.info('Sending "%s" to %s' % (msg, channel_name))
+        if channel_name not in self.joined_channels:
+            if len(self.joined_channels) >= CHANNEL_MAX:
+                drop = sorted(self.joined_channels.values(),
+                              key=lambda x: x.last_used)[-1]
+                self.connection.part(drop.name)
+                self.log.info('Parted channel %s' % drop.name)
+                del self.joined_channels[drop.name]
+            channel = self.all_channels[channel_name]
+            self.connection.join(channel.name)
+            self.joined_channels[channel.name] = channel
+            self.log.info('Joined channel %s' % channel.name)
+            time.sleep(0.5)
+        self.all_channels[channel_name].stamp()
         try:
-            self.connection.privmsg(channel, msg)
+            self.connection.privmsg(channel_name, msg)
             time.sleep(0.5)
         except Exception:
             self.log.exception('Exception sending message:')
