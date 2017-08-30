@@ -1,2 +1,5 @@
 hacking>=0.10.0,<0.11
 sphinx>=1.1.2
+os-testr>=0.8.0 # Apache-2.0
+mock>=2.0.0 # BSD
+testtools>=1.4.0 # MIT

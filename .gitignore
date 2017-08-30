@@ -8,3 +8,4 @@ build/*
 *.pyc
 doc/build/*
 doc/source/api/*
+.stestr/
