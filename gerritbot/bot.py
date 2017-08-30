@@ -49,8 +49,10 @@ openstack-dev:
     projects:
       - openstack/nova
       - openstack/swift
+      - ^openstack/fuel-.*
     branches:
       - master
+      - ^stable/(newton|ocata|pike)
 """
 
 import ConfigParser
@@ -218,8 +220,8 @@ class Gerrit(threading.Thread):
 
         for approval in data.get('approvals', []):
             if (approval['type'] == 'VRIF' and approval['value'] == '-2'
-                and channel in self.channel_config.events.get(
-                    'x-vrif-minus-2', set())):
+                and channel in self._channels_for('events',
+                                                  'x-vrif-minus-2')):
                 msg = 'Verification of a change to %s failed: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
@@ -228,8 +230,8 @@ class Gerrit(threading.Thread):
                 self.ircbot.send(channel, msg)
 
             if (approval['type'] == 'VRIF' and approval['value'] == '2'
-                and channel in self.channel_config.events.get(
-                    'x-vrif-plus-2', set())):
+                and channel in self._channels_for('events',
+                                                  'x-vrif-plus-2')):
                 msg = 'Verification of a change to %s succeeded: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
@@ -238,8 +240,8 @@ class Gerrit(threading.Thread):
                 self.ircbot.send(channel, msg)
 
             if (approval['type'] == 'CRVW' and approval['value'] == '-2'
-                and channel in self.channel_config.events.get(
-                    'x-crvw-minus-2', set())):
+                and channel in self._channels_for('events',
+                                                  'x-crvw-minus-2')):
                 msg = 'A change to %s has been rejected: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
@@ -248,8 +250,8 @@ class Gerrit(threading.Thread):
                 self.ircbot.send(channel, msg)
 
             if (approval['type'] == 'CRVW' and approval['value'] == '2'
-                and channel in self.channel_config.events.get(
-                    'x-crvw-plus-2', set())):
+                and channel in self._channels_for('events',
+                                                  'x-crvw-plus-2')):
                 msg = 'A change to %s has been approved: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
@@ -266,17 +268,63 @@ class Gerrit(threading.Thread):
         self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
 
+    def _channels_for(self, section, datakey):
+        """Get a set of channel names for a given data value.
+
+        Finds all the channels that care about the specified datakey for a
+        given channel_config section.  If the channel config key starts with
+        '^', datakey is matched by regex; otherwise it is matched by string
+        equality.  For example, given input data:
+
+            openstack-dev:
+              projects:
+                - openstack/foo-bar
+
+            openstack-infra:
+              projects:
+                - ^openstack/foo-.*$
+
+            openstack-sdks:
+              projects:
+                - openstack/foo
+
+        ...the call:
+
+            _channels_for('projects', 'openstack/foo-bar')
+
+        ...will return the set:
+
+            {'#openstack-dev', '#openstack-infra'}
+
+        :param str section: The channel_config section to inspect ('projects',
+                           'events', or 'branches')
+        :param str datakey: The key into the section, from the source data.
+                            E.g. for section 'projects', the key would be the
+                            project name (data['change']['project']).
+        """
+        ret = set()
+        for key, chanset in getattr(self.channel_config, section, {}).items():
+            for channel in chanset or set():
+                if key.startswith('^'):
+                    if re.search(key, datakey):
+                        ret.add(channel)
+                else:
+                    if key == datakey:
+                        ret.add(channel)
+        return ret
+
     def _read(self, data):
         try:
-            if data['type'] == 'ref-updated':
-                channel_set = self.channel_config.events.get('ref-updated')
+            # We only consider event (not project/branch) filters for these.
+            event_only_types = ('ref-updated',)
+            if data['type'] in event_only_types:
+                channel_set = self._channels_for('events', data['type'])
             else:
-                channel_set = (self.channel_config.projects.get(
-                    data['change']['project'], set()) &
-                    self.channel_config.events.get(
-                        data['type'], set()) &
-                    self.channel_config.branches.get(
-                        data['change']['branch'], set()))
+                channel_set = (
+                    self._channels_for('projects', data['change']['project']) &
+                    self._channels_for('events', data['type']) &
+                    self._channels_for('branches', data['change']['branch'])
+                )
         except KeyError:
             # The data we care about was not present, no channels want
             # this event.

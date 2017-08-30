@@ -23,10 +23,7 @@ openstack-dev:
     events:
       - patchset-created
       - change-merged
-      - x-vrif-minus-2
-      - x-vrif-plus-2
-      - x-crvw-minus-2
-      - x-crvw-plus-2
+      - ^x-(crvw|vrif)-(plus|minus)-2$
     projects:
       - openstack/nova
       - openstack/swift
@@ -39,14 +36,9 @@ openstack-infra:
       - change-merged
       - comment-added
       - ref-updated
-      - x-vrif-minus-2
-      - x-vrif-plus-2
-      - x-crvw-minus-2
-      - x-crvw-plus-2
+      - ^x-(crvw|vrif)-(plus|minus)-2$
     projects:
-      - openstack/gerritbot
-      - openstack/nova
-      - openstack/swift
+      - ^openstack/
     branches:
       - master
       - stable/queens
@@ -80,21 +72,17 @@ class ChannelConfigTestCase(testtools.TestCase):
                 'comment-added': {'#openstack-infra'},
                 'patchset-created': expected_channels,
                 'ref-updated': {'#openstack-infra'},
-                'x-crvw-minus-2': expected_channels,
-                'x-crvw-plus-2': expected_channels,
-                'x-vrif-minus-2': expected_channels,
-                'x-vrif-plus-2': expected_channels,
+                '^x-(crvw|vrif)-(plus|minus)-2$': expected_channels,
             },
             channel_config.events)
 
     def test_projects(self):
         channel_config = bot.ChannelConfig(yaml.load(CHANNEL_CONFIG_YAML))
-        expected_channels = {'#openstack-dev', '#openstack-infra'}
         self.assertEqual(
             {
-                'openstack/gerritbot': {'#openstack-infra'},
-                'openstack/nova': expected_channels,
-                'openstack/swift': expected_channels,
+                '^openstack/': {'#openstack-infra'},
+                'openstack/nova': {'#openstack-dev'},
+                'openstack/swift': {'#openstack-dev'},
             },
             channel_config.projects)
 

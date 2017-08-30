@@ -19,36 +19,41 @@ when starting the bot. It should look like::
   port=6667
   force_ssl=True or False (Defaults to False)
   server_password=SERVERPASS
-  channel_config=/path/to/yaml/config
-  
+  channel_config=/path/to/yaml/config (See below)
+
   [gerrit]
   user=gerrit2
   key=/path/to/id_rsa
   host=review.example.com
   port=29418
 
-The second configures the IRC channels and the events and projects that each
-channel is interested in. This config file is written in yaml and should look
-like::
+The second, referenced by ``[ircbot]channel_config`` in the above, configures
+the IRC channels and the events and projects that each channel is interested
+in. This config file is written in yaml and should look like::
 
   example-channel1:
       events:
         - patchset-created
         - change-merged
+        - ^x-(crvw|vrif)-(plus|minus)-2$
       projects:
         - example/project1
         - example/project2
       branches:
         - master
         - development
+
   example-channel2:
       events:
         - change-merged
       projects:
-        - example/project3
-        - example/project4
+        - ^example/project[34]$
+        - ^example/interesting-
       branches:
         - master
+        - ^stable/(newton|ocata|pike)$
+
+Denote regular expressions using the prefix ``^``.
 
 Running
 =======
