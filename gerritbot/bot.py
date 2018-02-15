@@ -115,19 +115,21 @@ class GerritBot(irc.bot.SingleServerIRCBot):
         self.password = password
         self.log = logging.getLogger('gerritbot')
 
-    def on_nicknameinuse(self, c, e):
+    def on_nicknameinuse(self, connection, event):
         self.log.info('Nick previously in use, recovering.')
-        c.nick(c.get_nickname() + "_")
-        c.privmsg("nickserv", "identify %s " % self.password)
-        c.privmsg("nickserv", "ghost %s %s" % (self.nickname, self.password))
-        c.privmsg("nickserv", "release %s %s" % (self.nickname, self.password))
+        connection.nick(connection.get_nickname() + "_")
+        connection.privmsg("nickserv", "identify %s " % self.password)
+        connection.privmsg("nickserv", "ghost %s %s" % (self.nickname,
+                                                        self.password))
+        connection.privmsg("nickserv", "release %s %s" % (self.nickname,
+                                                          self.password))
         time.sleep(1)
-        c.nick(self.nickname)
+        connection.nick(self.nickname)
         self.log.info('Nick previously in use, recovered.')
 
-    def on_welcome(self, c, e):
+    def on_welcome(self, connection, event):
         self.log.info('Identifying with IRC server.')
-        c.privmsg("nickserv", "identify %s " % self.password)
+        connection.privmsg("nickserv", "identify %s " % self.password)
         self.log.info('Identified with IRC server.')
         self.joined_channels = {}
 

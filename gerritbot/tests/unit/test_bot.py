@@ -11,6 +11,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
+
 import testtools
 import yaml
 
@@ -21,15 +23,183 @@ openstack-dev:
     events:
       - patchset-created
       - change-merged
+      - x-vrif-minus-2
+      - x-vrif-plus-2
+      - x-crvw-minus-2
+      - x-crvw-plus-2
     projects:
       - openstack/nova
       - openstack/swift
     branches:
       - master
+      - stable/queens
+openstack-infra:
+    events:
+      - patchset-created
+      - change-merged
+      - x-vrif-minus-2
+      - x-vrif-plus-2
+      - x-crvw-minus-2
+      - x-crvw-plus-2
+    projects:
+      - openstack/nova
+      - openstack/swift
+    branches:
+      - master
+      - stable/queens
 """
 
 
 class ChannelConfigTestCase(testtools.TestCase):
     def test_missing_octothorpe(self):
         channel_config = bot.ChannelConfig(yaml.load(CHANNEL_CONFIG_YAML))
-        self.assertEqual(['#openstack-dev'], channel_config.channels)
+        # TODO(jlvillal): Python 2 only assert. Must change to use
+        # six.assertCountEqual() for Python 2/3 compatibility
+        self.assertItemsEqual(['#openstack-dev', '#openstack-infra'],
+                              channel_config.channels)
+
+    def test_branches(self):
+        channel_config = bot.ChannelConfig(yaml.load(CHANNEL_CONFIG_YAML))
+        expected_channels = {'#openstack-dev', '#openstack-infra'}
+        self.assertEqual(
+            {
+                'master': expected_channels,
+                'stable/queens': expected_channels,
+            },
+            channel_config.branches)
+
+    def test_events(self):
+        channel_config = bot.ChannelConfig(yaml.load(CHANNEL_CONFIG_YAML))
+        expected_channels = {'#openstack-dev', '#openstack-infra'}
+        self.assertEqual(
+            {
+                'change-merged': expected_channels,
+                'patchset-created': expected_channels,
+                'x-crvw-minus-2': expected_channels,
+                'x-crvw-plus-2': expected_channels,
+                'x-vrif-minus-2': expected_channels,
+                'x-vrif-plus-2': expected_channels,
+            },
+            channel_config.events)
+
+    def test_projects(self):
+        channel_config = bot.ChannelConfig(yaml.load(CHANNEL_CONFIG_YAML))
+        expected_channels = {'#openstack-dev', '#openstack-infra'}
+        self.assertEqual(
+            {
+                'openstack/nova': expected_channels,
+                'openstack/swift': expected_channels,
+            },
+            channel_config.projects)
+
+
+Message = collections.namedtuple('Message', ['channel', 'msg'])
+
+
+class IrcBotHelper(object):
+    """Dummy class to use for testing the Gerrit and GerritMQTT classes
+
+    For testing the Gerrit and GerritMQTT classes we need a dummy IrcBot.
+    """
+    def __init__(self):
+        self.messages = []
+
+    def send(self, channel, msg):
+        self.messages.append(Message(channel=channel, msg=msg))
+
+
+class GerritTestCase(testtools.TestCase):
+
+    def setUp(self):
+        super(GerritTestCase, self).setUp()
+        self.ircbot = IrcBotHelper()
+        self.channel_config = bot.ChannelConfig(yaml.load(CHANNEL_CONFIG_YAML))
+        self.channel = "#openstack-infra"
+        self.gerrit = bot.Gerrit(ircbot=self.ircbot,
+                                 channel_config=self.channel_config,
+                                 server='localhost',
+                                 username='username',
+                                 port=29418)
+
+        self.sample_data = {
+            'change': {
+                'branch': 'master',
+                'project': 'openstack/gerritbot',
+                'subject': 'More unit tests',
+                'url': 'https://review.openstack.org/123456',
+            },
+            'patchSet': {
+                'uploader': {
+                    'name': 'John L. Villalovos',
+                },
+            },
+            'refUpdate': {
+                'project': 'openstack/gerritbot',
+                'refName': 'refs/tags/pike',
+            },
+            'submitter': {
+                'username': 'elmo',
+            },
+
+        }
+
+    def test_patchset_created(self):
+        self.gerrit.patchset_created(self.channel, self.sample_data)
+
+        self.assertEqual(1, len(self.ircbot.messages))
+        message = self.ircbot.messages[0]
+        self.assertEqual(self.channel, message.channel)
+        self.assertEqual(
+            'John L. Villalovos proposed openstack/gerritbot master: More '
+            'unit tests  https://review.openstack.org/123456',
+            message.msg)
+
+    def test_ref_updated(self):
+        self.gerrit.ref_updated(self.channel, self.sample_data)
+
+        self.assertEqual(1, len(self.ircbot.messages))
+        message = self.ircbot.messages[0]
+        self.assertEqual(self.channel, message.channel)
+        self.assertEqual('elmo tagged project openstack/gerritbot with pike',
+                         message.msg)
+
+    def test_change_merged(self):
+        self.gerrit.change_merged(self.channel, self.sample_data)
+
+        self.assertEqual(1, len(self.ircbot.messages))
+        message = self.ircbot.messages[0]
+        self.assertEqual(self.channel, message.channel)
+        self.assertEqual(
+            'Merged openstack/gerritbot master: More unit tests  '
+            'https://review.openstack.org/123456',
+            message.msg)
+
+    def test_comment_added(self):
+        self.gerrit.comment_added(self.channel, self.sample_data)
+
+        self.assertEqual(1, len(self.ircbot.messages))
+        message = self.ircbot.messages[0]
+        self.assertEqual(self.channel, message.channel)
+        self.assertEqual(
+            'A comment has been added to a proposed change to '
+            'openstack/gerritbot: More unit tests  '
+            'https://review.openstack.org/123456',
+            message.msg)
+
+    def test_comment_added_vrif(self):
+        self.sample_data['approvals'] = [{
+            'type': 'VRIF',
+            'value': '-2',
+        }]
+        self.gerrit.comment_added(self.channel, self.sample_data)
+
+        self.assertEqual(2, len(self.ircbot.messages))
+
+        # The test function 'test_comment_added()' verifies that index 0 is
+        # correct, so we will only check index 1
+        message = self.ircbot.messages[1]
+        self.assertEqual(self.channel, message.channel)
+        self.assertEqual(
+            'Verification of a change to openstack/gerritbot failed: '
+            'More unit tests  https://review.openstack.org/123456',
+            message.msg)
