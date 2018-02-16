@@ -37,11 +37,14 @@ openstack-infra:
     events:
       - patchset-created
       - change-merged
+      - comment-added
+      - ref-updated
       - x-vrif-minus-2
       - x-vrif-plus-2
       - x-crvw-minus-2
       - x-crvw-plus-2
     projects:
+      - openstack/gerritbot
       - openstack/nova
       - openstack/swift
     branches:
@@ -74,7 +77,9 @@ class ChannelConfigTestCase(testtools.TestCase):
         self.assertEqual(
             {
                 'change-merged': expected_channels,
+                'comment-added': {'#openstack-infra'},
                 'patchset-created': expected_channels,
+                'ref-updated': {'#openstack-infra'},
                 'x-crvw-minus-2': expected_channels,
                 'x-crvw-plus-2': expected_channels,
                 'x-vrif-minus-2': expected_channels,
@@ -87,6 +92,7 @@ class ChannelConfigTestCase(testtools.TestCase):
         expected_channels = {'#openstack-dev', '#openstack-infra'}
         self.assertEqual(
             {
+                'openstack/gerritbot': {'#openstack-infra'},
                 'openstack/nova': expected_channels,
                 'openstack/swift': expected_channels,
             },
@@ -143,9 +149,7 @@ class GerritTestCase(testtools.TestCase):
 
         }
 
-    def test_patchset_created(self):
-        self.gerrit.patchset_created(self.channel, self.sample_data)
-
+    def _validate_patchset_created(self):
         self.assertEqual(1, len(self.ircbot.messages))
         message = self.ircbot.messages[0]
         self.assertEqual(self.channel, message.channel)
@@ -154,18 +158,30 @@ class GerritTestCase(testtools.TestCase):
             'unit tests  https://review.openstack.org/123456',
             message.msg)
 
-    def test_ref_updated(self):
-        self.gerrit.ref_updated(self.channel, self.sample_data)
+    def test_patchset_created(self):
+        self.gerrit.patchset_created(self.channel, self.sample_data)
+        self._validate_patchset_created()
 
+    def test__read_patchset_created(self):
+        self.gerrit._read(dict(self.sample_data, type='patchset-created'))
+        self._validate_patchset_created()
+
+    def _validate_ref_updated(self):
         self.assertEqual(1, len(self.ircbot.messages))
         message = self.ircbot.messages[0]
         self.assertEqual(self.channel, message.channel)
         self.assertEqual('elmo tagged project openstack/gerritbot with pike',
                          message.msg)
 
-    def test_change_merged(self):
-        self.gerrit.change_merged(self.channel, self.sample_data)
+    def test_ref_updated(self):
+        self.gerrit.ref_updated(self.channel, self.sample_data)
+        self._validate_ref_updated()
 
+    def test__read_ref_updated(self):
+        self.gerrit._read(dict(self.sample_data, type='ref-updated'))
+        self._validate_ref_updated()
+
+    def _validate_change_merged(self):
         self.assertEqual(1, len(self.ircbot.messages))
         message = self.ircbot.messages[0]
         self.assertEqual(self.channel, message.channel)
@@ -174,9 +190,15 @@ class GerritTestCase(testtools.TestCase):
             'https://review.openstack.org/123456',
             message.msg)
 
-    def test_comment_added(self):
-        self.gerrit.comment_added(self.channel, self.sample_data)
+    def test_change_merged(self):
+        self.gerrit.change_merged(self.channel, self.sample_data)
+        self._validate_change_merged()
 
+    def test__read_change_merged(self):
+        self.gerrit._read(dict(self.sample_data, type='change-merged'))
+        self._validate_change_merged()
+
+    def _validate_comment_added(self):
         self.assertEqual(1, len(self.ircbot.messages))
         message = self.ircbot.messages[0]
         self.assertEqual(self.channel, message.channel)
@@ -186,13 +208,15 @@ class GerritTestCase(testtools.TestCase):
             'https://review.openstack.org/123456',
             message.msg)
 
-    def test_comment_added_vrif(self):
-        self.sample_data['approvals'] = [{
-            'type': 'VRIF',
-            'value': '-2',
-        }]
+    def test_comment_added(self):
         self.gerrit.comment_added(self.channel, self.sample_data)
+        self._validate_comment_added()
 
+    def test__read_comment_added(self):
+        self.gerrit._read(dict(self.sample_data, type='comment-added'))
+        self._validate_comment_added()
+
+    def _validate_comment_added_vrif(self):
         self.assertEqual(2, len(self.ircbot.messages))
 
         # The test function 'test_comment_added()' verifies that index 0 is
@@ -203,3 +227,20 @@ class GerritTestCase(testtools.TestCase):
             'Verification of a change to openstack/gerritbot failed: '
             'More unit tests  https://review.openstack.org/123456',
             message.msg)
+
+    def test_comment_added_vrif(self):
+        self.gerrit.comment_added(
+            self.channel,
+            dict(self.sample_data, approvals=[{
+                'type': 'VRIF',
+                'value': '-2',
+            }]))
+        self._validate_comment_added_vrif()
+
+    def test__read_comment_added_vrif(self):
+        self.gerrit._read(
+            dict(self.sample_data, type='comment-added', approvals=[{
+                'type': 'VRIF',
+                'value': '-2',
+            }]))
+        self._validate_comment_added_vrif()
