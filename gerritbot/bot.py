@@ -186,9 +186,18 @@ class Gerrit(threading.Thread):
             # Delay before attempting again.
             time.sleep(1)
 
+    @staticmethod
+    def _get_username(patchset):
+        # Try to find username
+        for key in ('name', 'username', 'email'):
+            username = patchset['uploader'].get(key)
+            if username:
+                return username
+        return "UNKNOWN USER"
+
     def patchset_created(self, channel, data):
         msg = '%s proposed %s %s: %s  %s' % (
-            data['patchSet']['uploader']['name'],
+            self._get_username(data['patchSet']),
             data['change']['project'],
             data['change']['branch'],
             data['change']['subject'],
