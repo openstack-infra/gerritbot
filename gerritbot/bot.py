@@ -21,9 +21,7 @@
 nick=NICKNAME
 pass=PASSWORD
 server=irc.freenode.net
-port=6667
-force_ssl=false
-server_password=SERVERPASS
+port=6697
 channel_config=/path/to/yaml/config
 pid=/path/to/pid_file
 use_mqtt=True
@@ -57,12 +55,13 @@ openstack-dev:
 
 import ConfigParser
 import daemon
+from ib3.auth import SASL
+from ib3.connection import SSL
 import irc.bot
 import json
 import logging.config
 import os
 import re
-import ssl
 import sys
 import threading
 import time
@@ -98,17 +97,14 @@ class Channel(object):
         self.last_used = time.time()
 
 
-class GerritBot(irc.bot.SingleServerIRCBot):
-    def __init__(self, channels, nickname, password, server, port=6667,
-                 force_ssl=False, server_password=None):
-        if force_ssl or port == 6697:
-            factory = irc.connection.Factory(wrapper=ssl.wrap_socket)
-            super(GerritBot, self).__init__([(server, port, server_password)],
-                                            nickname, nickname,
-                                            connect_factory=factory)
-        else:
-            super(GerritBot, self).__init__([(server, port, server_password)],
-                                            nickname, nickname)
+class GerritBot(SASL, SSL, irc.bot.SingleServerIRCBot):
+    def __init__(self, channels, nickname, password, server, port=6697):
+        super(GerritBot, self).__init__(
+            server_list=[(server, port)],
+            nickname=nickname,
+            realname=nickname,
+            ident_password=password,
+            channels=channels)
         self.all_channels = {}
         for name in channels:
             self.all_channels[name] = Channel(name)
@@ -116,24 +112,6 @@ class GerritBot(irc.bot.SingleServerIRCBot):
         self.nickname = nickname
         self.password = password
         self.log = logging.getLogger('gerritbot')
-
-    def on_nicknameinuse(self, connection, event):
-        self.log.info('Nick previously in use, recovering.')
-        connection.nick(connection.get_nickname() + "_")
-        connection.privmsg("nickserv", "identify %s " % self.password)
-        connection.privmsg("nickserv", "ghost %s %s" % (self.nickname,
-                                                        self.password))
-        connection.privmsg("nickserv", "release %s %s" % (self.nickname,
-                                                          self.password))
-        time.sleep(1)
-        connection.nick(self.nickname)
-        self.log.info('Nick previously in use, recovered.')
-
-    def on_welcome(self, connection, event):
-        self.log.info('Identifying with IRC server.')
-        connection.privmsg("nickserv", "identify %s " % self.password)
-        self.log.info('Identified with IRC server.')
-        self.joined_channels = {}
 
     def send(self, channel_name, msg):
         self.log.info('Sending "%s" to %s' % (msg, channel_name))
@@ -468,9 +446,7 @@ def _main(config):
                     config.get('ircbot', 'nick'),
                     config.get('ircbot', 'pass'),
                     config.get('ircbot', 'server'),
-                    config.getint('ircbot', 'port'),
-                    config.getboolean('ircbot', 'force_ssl'),
-                    config.get('ircbot', 'server_password'))
+                    config.getint('ircbot', 'port'))
     if config.has_option('ircbot', 'use_mqtt'):
         use_mqtt = config.getboolean('ircbot', 'use_mqtt')
     else:
@@ -499,8 +475,7 @@ def main():
         print("Usage: %s CONFIGFILE" % sys.argv[0])
         sys.exit(1)
 
-    config = ConfigParser.ConfigParser({'force_ssl': 'false',
-                                        'server_password': None})
+    config = ConfigParser.ConfigParser()
     config.read(sys.argv[1])
 
     pid_path = ""

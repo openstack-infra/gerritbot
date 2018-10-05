@@ -5,3 +5,4 @@ irc
 pyyaml
 python-daemon
 paho-mqtt>=1.2
+ib3

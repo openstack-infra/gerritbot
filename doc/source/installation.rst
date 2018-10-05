@@ -16,9 +16,7 @@ when starting the bot. It should look like::
   nick=NICKNAME
   pass=PASSWORD
   server=irc.freenode.net
-  port=6667
-  force_ssl=True or False (Defaults to False)
-  server_password=SERVERPASS
+  port=6697
   channel_config=/path/to/yaml/config (See below)
 
   [gerrit]
