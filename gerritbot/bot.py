@@ -103,8 +103,7 @@ class GerritBot(SASL, SSL, irc.bot.SingleServerIRCBot):
             server_list=[(server, port)],
             nickname=nickname,
             realname=nickname,
-            ident_password=password,
-            channels=channels)
+            ident_password=password)
         self.all_channels = {}
         for name in channels:
             self.all_channels[name] = Channel(name)
