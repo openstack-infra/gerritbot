@@ -25,7 +25,7 @@ Browse code:
 
 Clone:
 
- * git://git.openstack.org/openstack-infra/gerritbot
+ * https://git.openstack.org/openstack-infra/gerritbot
 
 Submit patches via Gerrit at:
 
