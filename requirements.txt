@@ -1,8 +1,0 @@
-pbr>=0.6,!=0.7
-
-gerritlib
-irc
-pyyaml
-python-daemon
-paho-mqtt>=1.2
-ib3
